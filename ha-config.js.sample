@@ -1,0 +1,34 @@
+// ── Home Assistant URL (no trailing slash) ────────────────────────────────
+var ha_url = "http://homeassistant.local:8123";
+
+// ── Long-lived access token ───────────────────────────────────────────────
+// HA → Profile → Long-Lived Access Tokens → Create Token
+var ha_token = "YOUR_LONG_LIVED_ACCESS_TOKEN";
+
+// ── Entities to show ─────────────────────────────────────────────────────
+// type: "climate" | "light" | "binary_sensor" | "switch" | "sensor"
+//       "device_tracker" | "lock"
+var ha_entities = [
+    { id: "climate.downstairs",       label: "Thermostat",  type: "climate"       },
+    { id: "light.living_room",        label: "Living Room", type: "light"         },
+    { id: "light.kitchen",            label: "Kitchen",     type: "light"         },
+    { id: "light.bedroom",            label: "Bedroom",     type: "light"         },
+    { id: "light.office",             label: "Office",      type: "light"         },
+    { id: "binary_sensor.front_door", label: "Front Door",  type: "binary_sensor" },
+];
+
+// ── Calendar ─────────────────────────────────────────────────────────────
+// Entity ID of your Google Calendar integration in HA
+var ha_calendar_id   = "calendar.ben_sarah";
+// How many days ahead to fetch events
+var ha_calendar_days = 7;
+
+// ── Display options (same as weather dashboard) ───────────────────────────
+var rotation    = null;         // null | "ll" | "lr" | "up"
+var night_mode  = "auto";       // "auto" | "on" | "off" | "HH-HH"
+var refreshTime = 60 * 1000;    // ms — how often to poll HA
+var utcOffset   = "local";      // "local" | null (auto) | "+02:00" etc.
+
+// ── RTC sleep mode (same as weather dashboard) ────────────────────────────
+var rtcSleepMode = false;
+var rtcWakeDelay = 15 * 1000;

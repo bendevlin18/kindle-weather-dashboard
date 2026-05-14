@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <meta name="viewport"
+          content="width=320, initial-scale=1, maximum-scale=1, user-scalable=0, target-densitydpi=medium-dpi">
+    <script src="vendor/moment/moment-with-locales.js" type="text/javascript"></script>
+    <script src="ha-config.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="vendor/weathericons/css/weather-icons.css"/>
+    <link rel="stylesheet" type="text/css" href="css/kindle.css"/>
+    <link rel="stylesheet" type="text/css" href="css/ha.css"/>
+
+    <script type="text/javascript">
+
+        // ── Shared infrastructure (mirrors index.html) ────────────────────────
+
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + RegExp.escape(name) + '=([^&#]*)');
+            var results = regex.exec(location.search);
+            if (!results) return null;
+            if (!results[1]) return '';
+            return decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+        RegExp.escape = function(s) {
+            return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        };
+
+        function viewport() {
+            var e = window, a = 'inner';
+            if (!('innerWidth' in window)) {
+                a = 'client';
+                e = document.documentElement || document.body;
+            }
+            return { width: e[a + 'Width'], height: e[a + 'Height'] };
+        }
+
+        function setRem(prefix) {
+            var v = viewport();
+            document.querySelector(':root').style.fontSize =
+                ((forcedRotation === false ? v.height : v.width) / 100) + 'px';
+        }
+
+        function rotate() {
+            var rot = getUrlParameter('rotation') ? getUrlParameter('rotation') : rotation;
+            var v = viewport();
+            var isPortrait = v.height > v.width;
+
+            if (isPortrait && rot === 'll') {
+                page.className = 'landscape'; forcedRotation = true;
+                page.style.transform = 'rotate(90deg)';
+                page.style.transformOrigin = 'bottom left';
+                page.style.webkitTransform = 'rotate(90deg)';
+                page.style.webkitTransformOrigin = 'bottom left';
+                page.style.position = 'absolute';
+                page.style.top = -v.width + 'px';
+                page.style.height = v.width + 'px';
+                page.style.width = v.height + 'px';
+            } else if (isPortrait && rot === 'lr') {
+                page.className = 'landscape'; forcedRotation = true;
+                page.style.transform = 'rotate(-90deg)';
+                page.style.transformOrigin = 'bottom right';
+                page.style.webkitTransform = 'rotate(-90deg)';
+                page.style.webkitTransformOrigin = 'top left';
+                page.style.position = 'absolute';
+                page.style.top = v.height + 'px';
+                page.style.height = v.width + 'px';
+                page.style.width = v.height + 'px';
+            } else if (rot === 'up') {
+                page.className = isPortrait ? 'portrait' : 'landscape'; forcedRotation = false;
+                page.style.transform = 'rotate(180deg)';
+                page.style.transformOrigin = '50% 50% 0';
+                page.style.webkitTransform = 'rotate(180deg)';
+                page.style.webkitTransformOrigin = '50% 50% 0';
+            } else {
+                page.className = isPortrait ? 'portrait' : 'landscape'; forcedRotation = false;
+                page.style.transform = page.style.transformOrigin = '';
+                page.style.webkitTransform = page.style.webkitTransformOrigin = '';
+                page.style.position = page.style.top = page.style.background = '';
+                page.style.height = page.style.width = '';
+            }
+        }
+
+        function setNightMode() {
+            document.querySelector(':root').className = isNightMode() ? 'night' : null;
+        }
+
+        function isNightMode() {
+            var mode = getUrlParameter('night') ? getUrlParameter('night') : night_mode;
+            if (mode === 'on') return true;
+            if (mode === 'auto') return isNight(_sunsetHour, _sunriseHour);
+            var found = mode && mode.match(/([0-9][0-9]?)-([0-9][0-9]?)/);
+            if (found) return isNight(found[1], found[2]);
+            return false;
+        }
+
+        function isNight(f, t) {
+            var from = parseInt(f), to = parseInt(t);
+            var now = momentWithCorrectUtcOffset(new Date()).hour();
+            if (from > to) return from <= now || to > now;
+            return from <= now && to > now;
+        }
+
+        function momentWithCorrectUtcOffset(dateTime) {
+            var offset = getUrlParameter('utcOffset') ? getUrlParameter('utcOffset') : utcOffset;
+            if (!offset) return moment(dateTime);
+            if (offset === 'local') return moment(dateTime);
+            return moment(dateTime).utcOffset(offset, false);
+        }
+
+        var cleaner = null;
+        function clearScreen(times) {
+            if (typeof times === 'undefined') times = 5;
+            if (times <= 0) {
+                cleaner.style.display = 'none';
+                window.setTimeout(function() { clearScreen(); }, 86400000);
+                return;
+            }
+            cleaner.style.display = 'block';
+            cleaner.style.background = times % 2 === 0 ? '#ffffff' : '#000000';
+            window.setTimeout(function() { clearScreen(times - 1); }, 500);
+        }
+
+        // ── Config vars (set by ha-config.js, defaults below) ────────────────
+
+        var ha_url, ha_token;
+        var ha_entities     = [];
+        var ha_calendar_id  = null;
+        var ha_calendar_days = 7;
+        var rotation, night_mode, refreshTime, utcOffset, rtcSleepMode, rtcWakeDelay;
+        var forcedRotation  = false;
+        var _sunsetHour = 18, _sunriseHour = 6;
+
+        refreshTime = getUrlParameter('refreshTime')
+            ? getUrlParameter('refreshTime') * 60 * 1000
+            : refreshTime;
+        if (!refreshTime)  refreshTime  = 60 * 1000;
+        if (!rtcWakeDelay) rtcWakeDelay = 15 * 1000;
+
+        // ── HA entity layer ───────────────────────────────────────────────────
+
+        function fetchEntityState(entityId, callback) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', ha_url + '/api/states/' + encodeURIComponent(entityId), true);
+            xhr.setRequestHeader('Authorization', 'Bearer ' + ha_token);
+            xhr.timeout = 10000;
+            xhr.onload = function() {
+                try { callback(xhr.status === 200 ? JSON.parse(xhr.responseText) : null); }
+                catch(e) { callback(null); }
+            };
+            xhr.onerror = xhr.ontimeout = function() { callback(null); };
+            xhr.send();
+        }
+
+        function renderEntity(index, config, state) {
+            var card = entityCards[index];
+            if (!card) return;
+
+            if (!state || state.state === 'unavailable') {
+                card.value.innerHTML  = '&mdash;';
+                card.detail.innerHTML = 'unavailable';
+                return;
+            }
+
+            var s = state.state, attr = state.attributes || {};
+
+            switch (config.type) {
+                case 'climate':
+                    var cur = attr.current_temperature != null ? Math.round(attr.current_temperature) : '?';
+                    var tgt = attr.temperature         != null ? Math.round(attr.temperature)         : '?';
+                    card.value.innerHTML  = cur + '&deg;';
+                    card.detail.innerHTML = '&rarr;&thinsp;' + tgt + '&deg; &middot; ' + s;
+                    break;
+                case 'light':
+                    card.value.innerHTML  = s === 'on' ? 'ON' : 'OFF';
+                    card.detail.innerHTML = (s === 'on' && attr.brightness != null)
+                        ? Math.round(attr.brightness / 255 * 100) + '%' : '';
+                    break;
+                case 'binary_sensor': case 'door': case 'window':
+                    card.value.innerHTML  = s === 'on' ? 'OPEN' : 'CLOSED';
+                    card.detail.innerHTML = '';
+                    break;
+                case 'lock':
+                    card.value.innerHTML  = s === 'locked' ? 'LOCKED' : 'OPEN';
+                    card.detail.innerHTML = '';
+                    break;
+                case 'device_tracker': case 'presence':
+                    card.value.innerHTML  = s === 'home' ? 'HOME' : 'AWAY';
+                    card.detail.innerHTML = '';
+                    break;
+                case 'switch':
+                    card.value.innerHTML  = s.toUpperCase();
+                    card.detail.innerHTML = '';
+                    break;
+                case 'sensor':
+                    var val = isNaN(parseFloat(s)) ? s : Math.round(parseFloat(s));
+                    card.value.innerHTML  = val + (attr.unit_of_measurement || '');
+                    card.detail.innerHTML = '';
+                    break;
+                default:
+                    card.value.innerHTML  = s;
+                    card.detail.innerHTML = '';
+            }
+        }
+
+        // ── Calendar layer ────────────────────────────────────────────────────
+
+        function fetchCalendarEvents(callback) {
+            if (!ha_calendar_id) { callback([]); return; }
+
+            var start = new Date();
+            start.setHours(0, 0, 0, 0);
+            var end = new Date(start.getTime() + ha_calendar_days * 24 * 60 * 60 * 1000);
+
+            var url = ha_url + '/api/calendars/' + encodeURIComponent(ha_calendar_id)
+                + '?start=' + encodeURIComponent(start.toISOString())
+                + '&end='   + encodeURIComponent(end.toISOString());
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.setRequestHeader('Authorization', 'Bearer ' + ha_token);
+            xhr.timeout = 10000;
+            xhr.onload = function() {
+                try { callback(xhr.status === 200 ? JSON.parse(xhr.responseText) : []); }
+                catch(e) { callback([]); }
+            };
+            xhr.onerror = xhr.ontimeout = function() { callback([]); };
+            xhr.send();
+        }
+
+        function renderCalendarEvents(events) {
+            var container = calendarEl;
+            container.innerHTML = '';
+
+            if (!events || events.length === 0) {
+                var empty = document.createElement('div');
+                empty.className = 'cal-empty';
+                empty.innerHTML = 'No upcoming events';
+                container.appendChild(empty);
+                return;
+            }
+
+            var today    = new Date(); today.setHours(0, 0, 0, 0);
+            var tomorrow = new Date(today.getTime() + 86400000);
+            var lastDay  = '';
+
+            for (var i = 0; i < events.length; i++) {
+                var ev       = events[i];
+                var isAllDay = !ev.start.dateTime;
+                var startDt  = isAllDay ? parseDateOnly(ev.start.date) : new Date(ev.start.dateTime);
+
+                // Day header
+                var dayKey = isAllDay ? ev.start.date : startDt.toDateString();
+                if (dayKey !== lastDay) {
+                    var hdr = document.createElement('div');
+                    hdr.className   = 'cal-day-header';
+                    hdr.textContent = dayLabel(startDt, today, tomorrow, isAllDay);
+                    container.appendChild(hdr);
+                    lastDay = dayKey;
+                }
+
+                // Event row
+                var row  = document.createElement('div');
+                row.className = 'cal-event';
+
+                var timeSpan  = document.createElement('span');
+                timeSpan.className = 'cal-event-time';
+                timeSpan.textContent = isAllDay
+                    ? 'All day'
+                    : momentWithCorrectUtcOffset(startDt).format('h:mma');
+
+                var titleSpan = document.createElement('span');
+                titleSpan.className   = 'cal-event-title';
+                titleSpan.textContent = ev.summary || '(No title)';
+
+                row.appendChild(timeSpan);
+                row.appendChild(titleSpan);
+                container.appendChild(row);
+            }
+        }
+
+        function parseDateOnly(dateStr) {
+            // "YYYY-MM-DD" → local midnight (avoids UTC-offset shift)
+            var p = dateStr.split('-');
+            return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+        }
+
+        function dayLabel(date, today, tomorrow, isAllDay) {
+            var d = isAllDay ? date : new Date(date); d.setHours(0, 0, 0, 0);
+            if (d.getTime() === today.getTime())    return 'Today';
+            if (d.getTime() === tomorrow.getTime()) return 'Tomorrow';
+            return momentWithCorrectUtcOffset(date).format('ddd, MMM D');
+        }
+
+        // ── Clock + data refresh ──────────────────────────────────────────────
+
+        var page = null, clockEl = null, dateEl = null, calendarEl = null;
+        var entityCards = [];
+
+        function updateClock() {
+            var now = momentWithCorrectUtcOffset(new Date());
+            if (clockEl) clockEl.innerHTML = now.format('h:mm A');
+            if (dateEl)  dateEl.innerHTML  = now.format('ddd, ll');
+        }
+
+        function refreshData() {
+            setNightMode();
+            updateClock();
+
+            for (var i = 0; i < ha_entities.length; i++) {
+                (function(idx) {
+                    fetchEntityState(ha_entities[idx].id, function(state) {
+                        renderEntity(idx, ha_entities[idx], state);
+                    });
+                })(i);
+            }
+
+            fetchCalendarEvents(renderCalendarEvents);
+
+            if (!rtcSleepMode) {
+                window.setTimeout(refreshData, refreshTime);
+            }
+        }
+
+        // ── Init ──────────────────────────────────────────────────────────────
+
+        window.addEventListener('load', function() {
+            if (!ha_url || !ha_token) {
+                document.body.innerHTML =
+                    '<p style="font-family:sans-serif;font-size:2em;padding:2em">'
+                    + 'Copy ha-config.js.sample &rarr; ha-config.js and fill in your HA URL and token.'
+                    + '</p>';
+                return;
+            }
+
+            page       = document.getElementById('page');
+            clockEl    = document.getElementById('ha-clock');
+            dateEl     = document.getElementById('ha-date');
+            calendarEl = document.getElementById('calendar-events');
+            cleaner    = document.getElementById('cleaner');
+
+            var grid = document.getElementById('entity-grid');
+            for (var i = 0; i < ha_entities.length; i++) {
+                var entity = ha_entities[i];
+                var col = document.createElement('div');
+                col.className = 'ha-card';
+                col.innerHTML =
+                    '<div class="ha-card-label">' + (entity.label || entity.id) + '</div>'
+                    + '<div class="ha-card-value">&mdash;</div>'
+                    + '<div class="ha-card-detail"></div>';
+                grid.appendChild(col);
+                entityCards.push({
+                    value:  col.querySelector('.ha-card-value'),
+                    detail: col.querySelector('.ha-card-detail'),
+                });
+            }
+
+            rotate();
+            setRem('load');
+            setNightMode();
+            refreshData();
+
+            setInterval(updateClock, 30000);
+
+            if (rtcSleepMode) {
+                var lastRefresh = new Date().getTime(), wakeDelayActive = false;
+                setInterval(function() {
+                    var now = new Date().getTime();
+                    if (now - lastRefresh > refreshTime && !wakeDelayActive) {
+                        wakeDelayActive = true;
+                        setTimeout(function() {
+                            lastRefresh = new Date().getTime();
+                            refreshData();
+                            wakeDelayActive = false;
+                        }, rtcWakeDelay);
+                    }
+                }, 1000);
+            }
+
+            var now = new Date();
+            var diff = (new Date()).setHours(4, 0, 0) - now;
+            if (diff < 0) diff += 86400000;
+            window.setTimeout(function() { clearScreen(); }, diff);
+        });
+
+        window.addEventListener('resize', function() { rotate(); setRem('resize'); });
+
+    </script>
+</head>
+
+<body>
+<div id="page">
+    <div id="ha-clock"></div>
+    <div id="ha-date"></div>
+    <div id="content-area">
+        <div id="entity-section">
+            <div id="entity-grid"></div>
+        </div>
+        <div id="calendar-section">
+            <div id="calendar-events"></div>
+        </div>
+    </div>
+</div>
+<div id="cleaner"></div>
+</body>
+</html>

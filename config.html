@@ -163,6 +163,16 @@
         </label>
     </div>
     <div>
+        <label>Forecast columns: <br/>
+            <select name="forecastCount" id="forecastCount">
+                <option value="">default (5)</option>
+                <option value="3">3 columns</option>
+                <option value="4">4 columns</option>
+                <option value="5">5 columns</option>
+            </select>
+        </label>
+    </div>
+    <div>
         <label>Night Mode: <br/>
             <select name="night" id="night">
                 <option value="">default</option>
@@ -209,6 +219,7 @@
     setIfPresent("utcOffset");
     setIfPresent("tempType");
     setIfPresent("forecastType");
+    setIfPresent("forecastCount");
     setIfPresent("refreshTime");
 </script>
 </body>

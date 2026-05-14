@@ -58,11 +58,31 @@ html.night {
     top: 10%;
 }
 
-#lastUpdate {
-    font-size: 10px;
-    font-size: 1.4rem;
+#details {
+    font-size: 21px;
+    font-size: 3rem;
     position: absolute;
-    bottom: 47%;
+    bottom: 61%;
+    left: 3.3%;
+    white-space: nowrap;
+}
+
+#remark {
+    font-size: 21px;
+    font-size: 3rem;
+    position: absolute;
+    bottom: 57%;
+    left: 3.3%;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#lastUpdate {
+    font-size: 61px;
+    font-size: 8.6rem;
+    position: absolute;
+    bottom: 46%;
     left: 3.3%;
 }
 
@@ -76,8 +96,8 @@ html.night {
 }
 
 #icon {
-    font-size: 250px;
-    font-size: 35rem;
+    font-size: 184px;
+    font-size: 26rem;
 }
 
 #iconWrapper {
@@ -107,6 +127,7 @@ html.night {
     text-align: center;
     height: 100%;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .night .col {
@@ -119,23 +140,23 @@ html.night {
 
 #date {
     position: absolute;
-    bottom: 0;
+    bottom: 1.5%;
     left: 3.3%;
-    font-size: 30px;
-    font-size: 4.3rem;
+    font-size: 21px;
+    font-size: 3rem;
 }
 
 #sun {
     position: absolute;
-    bottom: 0;
+    bottom: 1.5%;
     right: 3.3%;
-    font-size: 30px;
-    font-size: 4.3rem;
+    font-size: 21px;
+    font-size: 3rem;
 }
 
 .forecastIconWrapper {
-    font-size: 100px;
-    font-size: 14.2rem;
+    font-size: 64px;
+    font-size: 9rem;
 }
 
 .colTemp {
@@ -147,6 +168,7 @@ html.night {
     font-size: 35px;
     font-size: 5rem;
     margin-top: 5%;
+    white-space: nowrap;
 }
 
 .colDesc {
@@ -154,13 +176,6 @@ html.night {
     font-size: 2.8rem;
 }
 
-.portrait .col:nth-last-child(2) {
-    border-right: none;
-}
-
-.portrait .col5 {
-    display: none;
-}
 
 .landscape #city {
     font-size: 35.4px;
@@ -172,9 +187,19 @@ html.night {
     font-size: 28rem;
 }
 
+.landscape #details {
+    font-size: 15.2px;
+    font-size: 3rem;
+}
+
+.landscape #remark {
+    font-size: 15.2px;
+    font-size: 3rem;
+}
+
 .landscape #lastUpdate {
-    font-size: 7.1px;
-    font-size: 1.4rem;
+    font-size: 43.5px;
+    font-size: 8.6rem;
 }
 
 .landscape #description {
@@ -183,22 +208,22 @@ html.night {
 }
 
 .landscape #icon {
-    font-size: 177.1px;
-    font-size: 35rem;
+    font-size: 131.6px;
+    font-size: 26rem;
 }
 .landscape #date {
-    font-size: 21.8px;
-    font-size: 4.3rem;
+    font-size: 15.2px;
+    font-size: 3rem;
 }
 
 .landscape #sun {
-    font-size: 21.8px;
-    font-size: 4.3rem;
+    font-size: 15.2px;
+    font-size: 3rem;
 }
 
 .landscape .forecastIconWrapper {
-    font-size: 71.9px;
-    font-size: 14.2rem;
+    font-size: 45.6px;
+    font-size: 9rem;
 }
 
 .landscape .colTemp {
