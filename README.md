@@ -76,6 +76,86 @@ Examples:
 * Dashboard for Prague, metric units, Slovak language: `http://YOUR_URL/?city=Prague&lang=sk&units=metric&appId=YOUR_API_KEY`
 * Dashboard for a given GPS location, metric units, default language: `https://YOUR_URL/?lat=50&lon=14&units=metric&appId=YOUR_API_KEY`
 
+---
+
+# Home Assistant Dashboard (`ha.html`)
+
+A second Kindle-optimized page that shows live data from your Home Assistant instance — entity states, a large clock, and an optional calendar.
+
+## Setup
+
+**1. Get a Long-Lived Access Token from HA**
+
+In Home Assistant: Profile (bottom-left avatar) → scroll to the bottom → **Long-Lived Access Tokens** → Create Token. Copy the token — you won't see it again.
+
+**2. Create your config file**
+
+```bash
+cp ha-config.js.sample ha-config.js
+```
+
+Edit `ha-config.js` and fill in:
+
+```js
+var ha_url   = "http://192.168.1.x:8123";   // your HA URL, no trailing slash
+var ha_token = "YOUR_LONG_LIVED_ACCESS_TOKEN";
+```
+
+**3. Find your entity IDs**
+
+In HA: **Settings → Devices & Services → Entities**, or **Developer Tools → States**. The entity ID is the string like `climate.living_room` or `light.bedroom`.
+
+Add them to `ha_entities` in `ha-config.js`:
+
+```js
+var ha_entities = [
+    { id: "climate.downstairs",       label: "Thermostat",  type: "climate"       },
+    { id: "light.living_room",        label: "Living Room", type: "light"         },
+    { id: "binary_sensor.front_door", label: "Front Door",  type: "binary_sensor" },
+];
+```
+
+Supported types: `climate`, `light`, `binary_sensor`, `switch`, `sensor`, `lock`, `device_tracker`
+
+**4. (Optional) Add a calendar**
+
+Set `ha_calendar_id` to the entity ID of a calendar integration in HA (e.g. `calendar.my_google_calendar`):
+
+```js
+var ha_calendar_id   = "calendar.my_google_calendar";
+var ha_calendar_days = 7;   // how many days ahead to show
+```
+
+**5. Open it on the Kindle**
+
+Point the Kindle browser at:
+```
+http://<your-server-ip>/kindle-weather-dashboard/ha.html
+```
+
+Or if running directly on the Kindle:
+```
+file:///mnt/us/kindle-weather-dashboard/ha.html
+```
+
+## Configuration options (`ha-config.js`)
+
+| Variable | Description | Default |
+|---|---|---|
+| `ha_url` | Home Assistant base URL (no trailing slash) | *(required)* |
+| `ha_token` | Long-lived access token | *(required)* |
+| `ha_entities` | Array of entity objects to display | `[]` |
+| `ha_calendar_id` | HA calendar entity ID | `null` (disabled) |
+| `ha_calendar_days` | Days ahead to fetch calendar events | `7` |
+| `rotation` | Screen rotation: `null`, `"ll"`, `"lr"`, `"up"` | `null` |
+| `night_mode` | `"auto"`, `"on"`, `"off"`, or `"HH-HH"` | `"auto"` |
+| `refreshTime` | Poll interval in ms | `60000` (1 min) |
+| `utcOffset` | `"local"`, `null`, or `"+02:00"` etc. | `"local"` |
+| `rtcSleepMode` | Enable RTC sleep/wake gap detection | `false` |
+| `rtcWakeDelay` | Extra delay after RTC wake before refresh (ms) | `15000` |
+
+---
+
 ## Screenshots
 
 ### Kindle 4
